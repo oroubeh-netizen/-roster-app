@@ -44,7 +44,9 @@ for r in rows_data:
         shift_val = r["shifts"][d_idx]
         row_dict[day] = shift_val
         total_h += calculate_shift_duration(shift_val)
-    h, m = int(total_h), int(round((total_h - h) * 60))
+    h = int(total_h)
+m = int(round((total_h - h) * 60))
+
     row_dict["Weekly Work"] = f"{h}h {m:02d}m"
     table_rows.append(row_dict)
 
