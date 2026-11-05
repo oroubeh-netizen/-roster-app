@@ -1,48 +1,53 @@
 import streamlit as st
 import pandas as pd
 from pypdf import PdfReader
+import re
 
 st.set_page_config(page_title="Angered Roster", layout="wide")
 
 st.title("🚍 نظام إدارة وتبديل جداول الورديات (Angered Roster)")
-st.write("جدول تفاعلي (Grid) بأعمدة وصفوف واضحة مع إمكانية التغيير والتعديل بين الخانات:")
+st.write("استعراض وتعديل الجداول والأرقام الحقيقية المستخرجة مباشرة من ملف الـ PDF:")
 
 pdf_path = "2027 Scheman Angered.pdf"
 
 try:
     reader = PdfReader(pdf_path)
     
-    # قائمة لاختيار الصفحة
+    # قائمة لاختيار الصفحة المطلوبة
     page_numbers = list(range(1, len(reader.pages) + 1))
-    selected_page = st.selectbox("📄 اختر الصفحة المطلوبة:", page_numbers)
+    selected_page = st.selectbox("📄 اختر الصفحة المطلوبة من جدول الـ PDF:", page_numbers)
     
     page = reader.pages[selected_page - 1]
+    text = page.extract_text(extraction_mode="layout")
     
-    st.success(f"تم تحميل الجدول التفاعلي للصفحة رقم {selected_page}:")
+    lines = text.split('\n')
+    table_rows = []
     
-    # هيكل الجدول الشبكي الحقيقي (Grid) للأيام والورديات
-    roster_grid = {
-        "Pos": ["1", "2", "3", "4", "5", "6", "7"],
-        "Mon": ["03:45 - 11:52", "04:00 - 12:34", "OFF", "05:00 - 13:00", "OFF", "03:58 - 12:23", "OFF"],
-        "Tue": ["11:52 - 19:48", "12:34 - 20:42", "04:30 - 13:36", "OFF", "06:00 - 14:00", "12:42 - 13:22", "04:30 - 13:36"],
-        "Wed": ["03:45 - 11:52", "04:00 - 12:34", "OFF", "04:18 - 09:43", "OFF", "04:18 - 09:43", "14:29 - 15:32"],
-        "Thu": ["11:52 - 19:48", "12:34 - 20:42", "04:30 - 13:36", "10:51 - 11:34", "OFF", "10:51 - 11:34", "04:30 - 13:36"],
-        "Fri": ["03:45 - 11:52", "04:00 - 12:34", "OFF", "03:58 - 12:23", "13:41 - 22:07", "03:58 - 12:23", "13:41 - 22:07"],
-        "Sat": ["OFF", "OFF", "04:18 - 09:39", "OFF", "OFF", "OFF", "04:18 - 09:39"],
-        "Sun": ["OFF", "OFF", "OFF", "05:08 - 13:16", "OFF", "05:08 - 13:16", "OFF"]
-    }
-    
-    df_grid = pd.DataFrame(roster_grid)
-    
-    # عرض جدول شبكي تفاعلي بالكامل يتيح التعديل والتغيير بين الخانات
-    edited_df = st.data_editor(df_grid, use_container_width=True, key=f"grid_page_{selected_page}")
-    
-    st.info("💡 يمكنك النقر مباشرة على أي خانة (خلية) في الجدول أعلاه وتغيير الوقت أو حالة الوردية (مثل تحويلها إلى OFF أو تعديل الساعات)!")
+    # تحليل التخطيط لاستخراج الصفوف والأعمدة الحقيقية
+    for line in lines:
+        stripped = line.strip()
+        parts = re.split(r'\s{2,}', stripped)
+        if parts and parts[0].isdigit():
+            row_data = {"Pos": parts[0]}
+            days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            for idx, day in enumerate(days):
+                if idx + 1 < len(parts):
+                    row_data[day] = parts[idx + 1]
+                else:
+                    row_data[day] = ""
+            table_rows.append(row_data)
 
-    # عرض النص الأصلي للمقارنة في الأسفل عند الحاجة
-    with st.expander("🔍 عرض النص الأصلي المكاني للصفحة من ملف الـ PDF"):
-        layout_text = page.extract_text(extraction_mode="layout")
-        st.code(layout_text, language="text")
+    if table_rows:
+        df = pd.DataFrame(table_rows)
+        st.success(f"تم استخراج الجدول الحقيقي من الصفحة رقم {selected_page} بنجاح!")
+        
+        # عرض الجدول الشبكي التفاعلي بالبيانات الحقيقية مع إمكانية التعديل والتغيير بين الخانات
+        edited_df = st.data_editor(df, use_container_width=True, key=f"real_grid_p{selected_page}")
+        
+        st.info("💡 يمكنك الآن النقر مباشرة على أي خانة في الجدول أعلاه وتغيير أو تعديل الأرقام والورديات بكل سهولة!")
+    else:
+        st.warning("هذه الصفحة تحتوي على نصوص تنظيمية، وإليك التخطيط الأصلي للنص تماماً كما هو في الـ PDF:")
+        st.code(text, language="text")
 
 except Exception as e:
-    st.error(f"حدث خطأ أثناء تحميل الجداول: {e}")
+    st.error(f"حدث خطأ أثناء معالجة الملف: {e}")
