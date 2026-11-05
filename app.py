@@ -1,54 +1,58 @@
 import streamlit as st
 import pandas as pd
 from pypdf import PdfReader
-import re
 
-st.set_page_config(page_title="Angered Roster", layout="wide")
+st.set_page_config(page_title="Angered Roster System", layout="wide")
 
 st.title("🚍 نظام إدارة وتبديل جداول الورديات (Angered Roster)")
-st.write("عرض الجدول بالكامل مع إبقاء الأرقام والبيانات مجتمعة في نفس الخلية كما هي في ملف الـ PDF:")
+st.write("النسخة المتكاملة لاستعراض وإدارة الجداول تماماً كما هي في ملف الـ PDF الأصلي:")
 
 pdf_path = "2027 Scheman Angered.pdf"
 
 try:
     reader = PdfReader(pdf_path)
     
-    page_numbers = list(range(1, len(reader.pages) + 1))
-    selected_page = st.selectbox("📄 اختر الصفحة المطلوبة من جدول الـ PDF:", page_numbers)
+    # واجهة تبويبات لاختيار طريقة العرض المثالية
+    tab1, tab2 = st.tabs(["📄 التنسيق والمظهر الأصلي للـ PDF", "📊 جدول البيانات والبحث السريع"])
     
-    page = reader.pages[selected_page - 1]
-    # استخدام استخراج التخطيط للحفاظ على المواقع الأصلية للأعمدة
-    text = page.extract_text(extraction_mode="layout")
-    
-    lines = text.split('\n')
-    table_rows = []
-    
-    for line in lines:
-        stripped = line.strip()
-        # تقسيم الأجزاء بناءً على المسافات الكبيرة بين الأعمدة في ملف الـ PDF
-        parts = re.split(r'\s{2,}', stripped)
-        if parts and parts[0].isdigit():
-            row_data = {"Pos": parts[0]}
-            days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-            for idx, day in enumerate(days):
-                if idx + 1 < len(parts):
-                    # دمج النصوص المتعددة في نفس الخلية إن وجدت بنفس الترتيب
-                    row_data[day] = parts[idx + 1]
-                else:
-                    row_data[day] = ""
-            table_rows.append(row_data)
-
-    if table_rows:
-        df = pd.DataFrame(table_rows)
-        st.success(f"تم تحميل الجدول وتنسيق الخانات للصفحة رقم {selected_page} بنجاح!")
+    with tab1:
+        st.subheader("عرض الصفحة بتخطيطها المكاني الأصلي")
+        page_numbers = list(range(1, len(reader.pages) + 1))
+        selected_page = st.selectbox("اختر الصفحة المطلوبة:", page_numbers, key="p_layout")
         
-        # جدول تفاعلي يتيح لك رؤية كل الأرقام داخل الخلية وتعديلها بكل مرونة
-        edited_df = st.data_editor(df, use_container_width=True, key=f"exact_grid_p{selected_page}")
+        page = reader.pages[selected_page - 1]
+        # استخدام نمط الحفاظ على التخطيط المكاني الأصلي للأعمدة والأيام
+        layout_text = page.extract_text(extraction_mode="layout")
         
-        st.info("💡 جميع الأرقام والورديات مرتبة الآن في نفس الخلية تماماً كما هي في الملف الأصلي، ويمكنك النقر وتعديل أي خانة بسهولة.")
-    else:
-        st.warning("هذه الصفحة تحتوي على نصوص ترويجية أو إدارية، وإليك التخطيط الأصلي للنص:")
-        st.code(text, language="text")
+        st.success(f"تم تحميل الصفحة رقم {selected_page} بتنسيقها الأصلي بنجاح:")
+        st.code(layout_text, language="text")
+        
+    with tab2:
+        st.subheader("البحث والتحكم في البيانات المستخرجة")
+        all_rows = []
+        for page_idx, p in enumerate(reader.pages):
+            txt = p.extract_text()
+            if txt:
+                for line in txt.split('\n'):
+                    l_str = line.strip()
+                    parts = l_str.split()
+                    if parts and parts[0].isdigit():
+                        all_rows.append({
+                            "الصفحة": page_idx + 1,
+                            "Pos (الموقف)": parts[0],
+                            "تفاصيل الأيام والورديات": "   |   ".join(parts[1:])
+                        })
+                        
+        if all_rows:
+            df_all = pd.DataFrame(all_rows)
+            search = st.text_input("🔍 ابحث برقم الموقف (Pos) أو الوقت (مثال: 1, 2, 700):")
+            if search:
+                df_all = df_all[df_all['Pos (الموقف)'].str.contains(search) | df_all['تفاصيل الأيام والورديات'].str.contains(search, case=False)]
+            
+            edited_table = st.data_editor(df_all, use_container_width=True, key="master_grid")
+            st.info("💡 يمكنك استعراض كافة السطور والبحث السريع والتعديل المباشر من خلال هذا الجدول.")
+        else:
+            st.warning("جاري قراءة محتوى الملف...")
 
 except Exception as e:
-    st.error(f"حدث خطأ أثناء معالجة الملف: {e}")
+    st.error(f"حدث خطأ أثناء تحميل الملف: {e}")
