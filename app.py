@@ -5,36 +5,40 @@ from pypdf import PdfReader
 st.set_page_config(page_title="Angered Roster", layout="wide")
 
 st.title("🚍 نظام إدارة وتبديل جداول الورديات (Angered Roster)")
-st.write("استعراض كافة الجداول والبيانات المستخرجة من ملف الـ PDF الخاص بك.")
+st.write("عرض وتنسيق بيانات جدول الورديات المستخرج من ملف الـ PDF:")
 
-# اسم ملف الـ PDF الذي رفعته مسبقاً
 pdf_path = "2027 Scheman Angered.pdf"
 
 try:
-    # قراءة الملف المستضاف في المشروع تلقائياً
     reader = PdfReader(pdf_path)
-    full_text = ""
     
+    # استخراج النصوص وتقسيمها لتسهيل العرض
+    all_rows = []
     for index, page in enumerate(reader.pages):
         text = page.extract_text()
         if text:
-            full_text += f"\n\n--- [ الصفحة رقم {index + 1} ] ---\n" + text
+            lines = text.split('\n')
+            for line in lines:
+                all_rows.append({"الصفحة": index + 1, "محتوى السطر": line})
 
-    st.success("تم قراءة جميع صفحات ملف الـ PDF بنجاح!")
+    # تحويل البيانات إلى جدول منظم باستخدام Pandas
+    df_pdf = pd.DataFrame(all_rows)
     
-    # عرض النصوص والجدول الكامل المستخرج
-    st.subheader("📄 محتوى الجداول الكاملة من الملف:")
-    st.text_area("النصوص المستخرجة من الـ PDF:", full_text, height=450)
+    st.success("تم قراءة وترتيب محتوى الملف بنجاح!")
+    
+    # عرض البيانات في جدول تفاعلي منظم
+    st.subheader("📊 جدول بيانات الورديات المنظم:")
+    st.dataframe(df_pdf, use_container_width=True)
 
 except Exception as e:
-    st.warning("الرجاء التأكد من وجود ملف الـ PDF في المستودع أو إعادة رفعه عبر الزر أدناه:")
+    st.warning("الرجاء التأكد من رفع ملف الـ PDF بالشكل الصحيح في المستودع.")
     uploaded_file = st.file_uploader("اختر ملف الـ PDF", type=["pdf"])
-    
     if uploaded_file is not None:
         reader = PdfReader(uploaded_file)
-        full_text = ""
+        all_rows = []
         for index, page in enumerate(reader.pages):
             text = page.extract_text()
             if text:
-                full_text += f"\n\n--- [ الصفحة رقم {index + 1} ] ---\n" + text
-        st.text_area("محتوى الملف المرفوع:", full_text, height=450)
+                for line in text.split('\n'):
+                    all_rows.append({"الصفحة": index + 1, "محتوى السطر": line})
+        st.dataframe(pd.DataFrame(all_rows), use_container_width=True)
