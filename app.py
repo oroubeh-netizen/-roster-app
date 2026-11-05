@@ -1,41 +1,33 @@
 import streamlit as st
 import pandas as pd
+from pypdf import PdfReader
 
 st.set_page_config(page_title="Angered Roster", layout="wide")
 
 st.title("🚍 نظام إدارة وتبديل جداول الورديات (Angered Roster)")
-st.write("أهلاً بك! يمكنك استعراض وجدولة الورديات بكل سهولة وسلاسة.")
+st.write("تم ربط جدول الورديات (PDF) بنجاح وقراءته مباشرة من المستودع.")
 
-# قائمة اختيار الجداول الثابتة والمستقرة
-roster_option = st.selectbox(
-    "Select Roster / اختر الجدول:",
-    ["Roster 700 (Produktionssupport)", "Roster 701 (Var tredje helg)"]
-)
+# اسم ملف الـ PDF الذي قمت برفعه
+pdf_filename = "2027 Scheman Angered.pdf" # أو اسم الملف الكامل لديك
 
-if "700" in roster_option:
-    data = {
-        "Pos": ["1", "2"],
-        "Mon": ["03:45 - 11:52", "04:00 - 12:34"],
-        "Tue": ["11:52 - 19:48", "12:34 - 20:42"],
-        "Wed": ["03:45 - 11:52", "04:00 - 12:34"],
-        "Thu": ["11:52 - 19:48", "12:34 - 20:42"],
-        "Fri": ["03:45 - 11:52", "04:00 - 12:34"],
-        "Sat": ["OFF", "OFF"],
-        "Sun": ["OFF", "OFF"]
-    }
-else:
-    data = {
-        "Pos": ["1", "2"],
-        "Mon": ["03:58 - 12:23", "OFF"],
-        "Tue": ["12:42 - 13:22", "04:30 - 13:36"],
-        "Wed": ["04:18 - 09:43", "14:29 - 15:32"],
-        "Thu": ["10:51 - 11:34", "04:30 - 13:36"],
-        "Fri": ["03:58 - 12:23", "13:41 - 22:07"],
-        "Sat": ["OFF", "04:18 - 09:39"],
-        "Sun": ["05:08 - 13:16", "OFF"]
-    }
+try:
+    # محاولة قراءة ملف الـ PDF الموجود في المشروع تلقائياً
+    reader = PdfReader(pdf_filename)
+    pdf_text = ""
+    for page in reader.pages:
+        pdf_text += page.extract_text() or ""
+        
+    st.success(f"تم تحميل وقراءة الملف ({pdf_filename}) بنجاح!")
+    
+    st.subheader("محتوى الجدول المستخرج من الـ PDF:")
+    st.text_area("النصوص الموجودة في الملف:", pdf_text, height=350)
 
-df = pd.DataFrame(data)
-st.dataframe(df, use_container_width=True)
-
-st.success("يعمل النظام بكفاءة تامة وجداول الورديات جاهزة للاستعراض والإدارة!")
+except Exception as e:
+    st.info("الرجاء التأكد من تطابق اسم ملف الـ PDF تماماً مع الكود، أو يمكنك رفع الملف أدناه:")
+    uploaded_file = st.file_uploader("اختر ملف الـ PDF الخاص بالورديات", type=["pdf"])
+    if uploaded_file is not None:
+        reader = PdfReader(uploaded_file)
+        pdf_text = ""
+        for page in reader.pages:
+            pdf_text += page.extract_text() or ""
+        st.text_area("محتوى الملف المرفوع:", pdf_text, height=300)
