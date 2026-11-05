@@ -5,52 +5,47 @@ from pypdf import PdfReader
 st.set_page_config(page_title="Angered Roster", layout="wide")
 
 st.title("🚍 نظام إدارة وتبديل جداول الورديات (Angered Roster)")
-st.write("استعراض جدول الورديات مقسماً بأعمدة منظمة:")
+st.write("عرض جدول الورديات منظماً بأعمدة واضحة:")
 
 pdf_path = "2027 Scheman Angered.pdf"
 
 try:
     reader = PdfReader(pdf_path)
-    all_text = ""
-    for page in reader.pages:
-        t = page.extract_text()
-        if t:
-            all_text += t + "\n"
-            
-    lines = all_text.split('\n')
+    all_rows = []
     
-    table_rows = []
-    current_cycle = "غير محدد"
-    
-    for line in lines:
-        line_str = line.strip()
-        if "Cycle:" in line_str:
-            current_cycle = line_str
-        
-        parts = line_str.split()
-        # التقاط أسطر الورديات التي تبدأ برقم الموقف (Pos)
-        if parts and parts[0].isdigit() and len(parts) >= 2:
-            pos = parts[0]
-            rest_data = " | ".join(parts[1:])
-            table_rows.append({
-                "الدورة / الجدول": current_cycle,
-                "Pos (الموقف)": pos,
-                "تفاصيل الورديات (الأيام والأوقات)": rest_data
-            })
+    for page_idx, page in enumerate(reader.pages):
+        text = page.extract_text()
+        if text:
+            lines = text.split('\n')
+            for line in lines:
+                line_str = line.strip()
+                parts = line_str.split()
+                # التقاط الأسطر الخاصة بالورديات التي تبدأ برقم الموقف (Pos) وتتضمن أوقات أو بيانات
+                if parts and parts[0].isdigit() and len(parts) >= 2:
+                    pos_val = parts[0]
+                    shift_details = "   |   ".join(parts[1:])
+                    all_rows.append({
+                        "الصفحة": page_idx + 1,
+                        "Pos (الموقف)": pos_val,
+                        "تفاصيل الورديات والأوقات": shift_details
+                    })
 
-    if table_rows:
-        df = pd.DataFrame(table_rows)
+    if all_rows:
+        df = pd.DataFrame(all_rows)
         
-        cycle_options = df["الدورة / الجدول"].unique().tolist()
-        selected_cycle = st.selectbox("🎯 اختر الجدول المطلوب:", cycle_options)
+        st.success("تم استخراج وترتيب جدول الورديات بنجاح!")
         
-        filtered_df = df[df["الدورة / الجدول"] == selected_cycle]
-        
-        st.success("تم تنظيم الجدول وعرضه بنجاح!")
-        st.dataframe(filtered_df, use_container_width=True)
+        # خانة بحث فورية للوصول لأي موقف أو وردية بسرعة
+        search_query = st.text_input("🔍 ابحث برقم الموقف (Pos) أو الوقت (مثال: 1, 2, 700):")
+        if search_query:
+            df = df[df['Pos (الموقف)'].str.contains(search_query) | df['تفاصيل الورديات والأوقات'].str.contains(search_query, case=False)]
+            
+        # عرض الجدول بشكل أنيق ومناسب للهاتف
+        st.dataframe(df, use_container_width=True)
     else:
-        st.warning("جاري عرض كافة محتويات الملف:")
-        st.dataframe(pd.DataFrame([{"النص": l} for l in lines if l.strip()]), use_container_width=True)
+        st.warning("لم يتم العثور على أسطر جدول مطابقة، جاري عرض النصوص الكاملة:")
+        full_text = "".join([p.extract_text() or "" for p in reader.pages])
+        st.text_area("محتوى الملف:", full_text, height=400)
 
 except Exception as e:
-    st.error(f"حدث خطأ أثناء قراءة الملف: {e}")
+    st.error(f"حدث خطأ أثناء معالجة الملف: {e}")
