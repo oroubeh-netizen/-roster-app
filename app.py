@@ -20,11 +20,9 @@ try:
         if text:
             lines = text.split('\n')
             for line in lines:
-                # التقاط رقم الجدول/الدورة إن وجد
                 if "Cycle:" in line or "Roster:" in line:
                     current_roster = line.strip()
                 
-                # تصفية الأسطر التي تحتوي على بيانات ورديات (أرقام وأيام)
                 if any(day in line for day in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]) or ("1 " in line or "2 " in line or "3 " in line):
                     roster_data.append({
                         "البيانات/الجدول": current_roster,
@@ -35,7 +33,6 @@ try:
     if roster_data:
         df_roster = pd.DataFrame(roster_data)
         
-        # خانة بحث لتصفية الجداول (مثلاً البحث عن 700 أو 701)
         search_query = st.text_input("🔍 ابحث عن رقم الجدول أو الموقف (مثال: 700 أو Pos):")
         if search_query:
             df_roster = df_roster[df_roster['تفاصيل الوردية والأسطر'].str.contains(search_query, case=False, na=False) | 
@@ -50,4 +47,4 @@ try:
         st.dataframe(pd.DataFrame(all_rows), use_container_width=True)
 
 except Exception as e:
-    st.error(fحدث خطأ أثناء قراءة الملف: {e}")
+    st.error(f"حدث خطأ أثناء قراءة الملف: {e}")
